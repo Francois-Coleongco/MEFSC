@@ -49,12 +49,8 @@ int Comms_Agent::notify_server_of_action(
 }
 
 int Sender_Agent::send_buffer() {
-  SessionEncWrapper buf_wrap = SessionEncWrapper(
-      this->buffer, this->size, this->CA->get_client_tx(), this->nonce);
   int client_sock = this->CA->get_socket();
-  buf_wrap.send_all(client_sock);
-
-  return 0;
+  return send_raw_blob(client_sock, this->buffer, this->size);
 }
 
 int Sender_Agent::init_send(
@@ -293,31 +289,26 @@ int Receiver_Agent::decrypt_and_read_from_server(std::ofstream &file,
                        reinterpret_cast<unsigned char *>(&prefix),
                        &decrypted_prefix_len);
 
-    SessionEncWrapper file_chunk_wrap =
-        SessionEncWrapper(this->CA->get_socket());
-
-    unsigned long long decrypted_file_chunk_len;
-
-    if (file_chunk_wrap.unwrap(rx, FILE_ENCRYPTED_CHUNK_SIZE, file_chunk,
-                               &decrypted_file_chunk_len)) {
-      std::cerr << "error decrypting file_chunk_wrap in pulling loop\n";
+    size_t file_chunk_len = 0;
+    if (recv_raw_blob(this->CA->get_socket(), file_chunk,
+                      FILE_ENCRYPTED_CHUNK_SIZE, &file_chunk_len) != 0) {
+      std::cerr << "error receiving raw file_chunk in pulling loop\n";
       return 1;
     }
 
     if (crypto_secretstream_xchacha20poly1305_pull(
             &state, decrypted_file_chunk, NULL, &tag, file_chunk,
-            decrypted_file_chunk_len, NULL, 0) != 0) {
+            file_chunk_len, NULL, 0) != 0) {
       std::cerr << "decryption failed in "
                    "crypto_secretstream_xchacha20poly1305_pull\n";
       return 2;
     }
 
     std::cout << "SUCCESSFUL DECRYPTION IN FILE CHUNK OF SIZE: "
-              << decrypted_file_chunk_len << " \n";
+              << file_chunk_len << " \n";
 
     file.write(reinterpret_cast<char *>(decrypted_file_chunk),
-               decrypted_file_chunk_len -
-                   crypto_secretstream_xchacha20poly1305_ABYTES);
+               file_chunk_len - crypto_secretstream_xchacha20poly1305_ABYTES);
 
   } while (prefix != END_CHUNK);
 

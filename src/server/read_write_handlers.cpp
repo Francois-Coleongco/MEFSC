@@ -177,21 +177,12 @@ int FS_Operator::WTFS_Handler__Server() {
       break;
     };
 
-    SessionEncWrapper encrypted_data_wrap = SessionEncWrapper(client_sock);
-    unsigned long long decrypted_file_chunk_len;
-
-    if (encrypted_data_wrap.is_corrupted()) {
-      std::cerr << "encrypted chunk data was corrupted\n";
+    size_t decrypted_file_chunk_len = 0;
+    if (recv_raw_blob(client_sock, decrypted_file_chunk,
+                      FILE_ENCRYPTED_CHUNK_SIZE, &decrypted_file_chunk_len)) {
+      std::cerr << "failed to receive raw encrypted file chunk\n";
       break;
     }
-
-    if (encrypted_data_wrap.unwrap(this->server_rx, FILE_ENCRYPTED_CHUNK_SIZE,
-                                   decrypted_file_chunk,
-                                   &decrypted_file_chunk_len)) {
-      std::cerr
-          << "encrypted chunk data was corrupted (discovered in unwrap)\n";
-      break;
-    };
 
     file.write(reinterpret_cast<char *>(decrypted_file_chunk),
                decrypted_file_chunk_len);
@@ -286,10 +277,7 @@ int FS_Operator::RFFS_Handler__Server() {
 
     prefix_wrap.send_all(this->client_sock);
 
-    SessionEncWrapper file_chunk_wrap = SessionEncWrapper(
-        file_chunk, file_chunk_len, this->server_tx, this->nonce);
-
-    file_chunk_wrap.send_all(this->client_sock);
+    send_raw_blob(this->client_sock, file_chunk, file_chunk_len);
 
   } while (!file.eof());
 
