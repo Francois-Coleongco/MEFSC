@@ -14,6 +14,7 @@
 #include <netinet/in.h>
 #include <queue>
 #include <signal.h>
+#include <sys/time.h>
 
 const int ACK_SUC = 0;
 const int ACK_FAIL = -1;
@@ -34,6 +35,21 @@ std::condition_variable queue_cv;
 
 std::atomic<bool> server_alive{true};
 int server_sock_fd = -1;
+
+bool set_conn_timeout(int client_sock) {
+  struct timeval tv;
+  tv.tv_sec = CONN_TIMEOUT_SEC;
+  tv.tv_usec = CONN_TIMEOUT_USEC;
+  if (setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+    std::cerr << "SO_RCVTIMEO failed: " << strerror(errno) << std::endl;
+    return false;
+  }
+  if (setsockopt(client_sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) < 0) {
+    std::cerr << "SO_SNDTIMEO failed: " << strerror(errno) << std::endl;
+    return false;
+  }
+  return true;
+}
 
 void handle_signal(int) {
   server_alive = false;
@@ -269,6 +285,13 @@ int main() {
 
     if (client_sock < 0) {
       std::cerr << "Failed to accept connection" << std::endl;
+      continue;
+    }
+
+    if (!set_conn_timeout(client_sock)) {
+      std::cerr << "Failed to configure timeout, closing connection"
+                << std::endl;
+      close(client_sock);
       continue;
     }
 
