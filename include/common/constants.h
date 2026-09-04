@@ -26,4 +26,10 @@ const unsigned char PRE_EXT_FILE_NAME_LEN =
 const int LIST_FILES = 3;
 const int DELETE_FILE = 4;
 
+// idle timeout (in seconds) applied to each accepted client connection.
+// A client that sends nothing for this long on any blocking recv/send will
+// have its connection closed and its worker thread freed.
+const int CONN_TIMEOUT_SEC = 600;
+const int CONN_TIMEOUT_USEC = 0;
+
 #endif
