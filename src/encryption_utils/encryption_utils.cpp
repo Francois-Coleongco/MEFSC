@@ -3,6 +3,29 @@
 #include <sodium/crypto_kx.h>
 #include <sodium/utils.h>
 
+int send_raw_blob(int fd, const void *data, size_t len) {
+  uint64_t n = static_cast<uint64_t>(len);
+  if (send(fd, &n, sizeof(n), MSG_NOSIGNAL) != static_cast<ssize_t>(sizeof(n)))
+    return 1;
+  if (len > 0 &&
+      send(fd, data, len, MSG_NOSIGNAL) != static_cast<ssize_t>(len))
+    return 1;
+  return 0;
+}
+
+int recv_raw_blob(int fd, void *buf, size_t cap, size_t *out_len) {
+  uint64_t n;
+  if (!recv_fully(fd, &n, sizeof(n))) return 1;
+  if (n > cap) {
+    std::cerr << "recv_raw_blob: length " << n << " exceeds capacity " << cap
+              << "\n";
+    return 1;
+  }
+  if (n > 0 && !recv_fully(fd, buf, static_cast<size_t>(n))) return 1;
+  if (out_len) *out_len = static_cast<size_t>(n);
+  return 0;
+}
+
 int encrypt_stream_buffer(
     unsigned char client_tx[crypto_kx_SESSIONKEYBYTES],
     unsigned char nonce[crypto_aead_chacha20poly1305_NPUBBYTES],

@@ -13,6 +13,12 @@
 
 bool recv_fully(int fd, void *buf, size_t len);
 
+// raw length-prefixed blob framing -- no AEAD, no nonce. used on the hot path
+// for bulk file-chunk data that is already encrypted at the file layer.
+// wire format: [uint64 len][len bytes]. recv_raw_blob rejects len > cap.
+int send_raw_blob(int fd, const void *data, size_t len);
+int recv_raw_blob(int fd, void *buf, size_t cap, size_t *out_len = nullptr);
+
 int encrypt_stream_buffer(
     unsigned char tx[crypto_kx_SESSIONKEYBYTES],
     unsigned char nonce[crypto_aead_chacha20poly1305_NPUBBYTES],

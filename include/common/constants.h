@@ -10,11 +10,11 @@ const int NO_ACTION = 99;
 const int NEW_ACTION = 88;
 const int END_CHUNK = 77;
 const int MEAT_CHUNK = 66;
-const size_t CHUNK_SIZE = 4096;
+const size_t CHUNK_SIZE = 65536;
 const size_t FILE_ENCRYPTED_CHUNK_SIZE =
     CHUNK_SIZE + crypto_secretstream_xchacha20poly1305_ABYTES;
 // IMPORTANT: use FILE_ENCRYPTED_CHUNK_SIZE for capacity whenver you decrypt from session.
-const size_t stream_chunk_size = 4096 +
+const size_t stream_chunk_size = CHUNK_SIZE +
                                  crypto_secretstream_xchacha20poly1305_ABYTES +
                                  crypto_aead_chacha20poly1305_ABYTES;
 const unsigned char MAX_FILE_NAME_LENGTH = 255;
